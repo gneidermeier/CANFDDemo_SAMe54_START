@@ -32,6 +32,7 @@
  */
 
 #include <atmel_start.h>
+#include <hal_gpio.h> /// LED0
 
 /**
  * \brief display configuration menu.
@@ -71,7 +72,7 @@ static void CAN_std_tx_callback(struct can_async_descriptor *const descr)
 	hri_can_set_CCCR_FDOE_bit(CAN_0.dev.hw);
 	hri_can_set_CCCR_BRSE_bit(CAN_0.dev.hw);
 
-	printf("  CAN Transmission done \r\n");
+	printf("  CAN Transmission done. \r\n");
 }
 
 static void CAN_0_rx_callback(struct can_async_descriptor *const descr)
@@ -117,6 +118,33 @@ int main(void)
 		tx_message_2[k] = k;
 	}
 
+#if 1
+ int ctr = 0;		  
+		  while (true) {
+			  delay_ms(500);
+			  gpio_toggle_pin_level(LED0);
+
+			msg.id   = 0x469;
+			msg.type = CAN_TYPE_DATA;
+			msg.data = tx_message_2;
+			msg.len  = 8;
+			msg.fmt  = CAN_FMT_STDID;
+msg.data[7] = ctr++;
+			/* Disable the FDOE and BRSE from register configuration
+			 * and enable them again in callback */
+			hri_can_set_CCCR_INIT_bit(CAN_0.dev.hw);
+			while (hri_can_get_CCCR_INIT_bit(CAN_0.dev.hw) == 0)
+				;
+			hri_can_set_CCCR_CCE_bit(CAN_0.dev.hw);
+
+			hri_can_clear_CCCR_FDOE_bit(CAN_0.dev.hw);
+			hri_can_clear_CCCR_BRSE_bit(CAN_0.dev.hw);
+
+			can_async_register_callback(&CAN_0, CAN_ASYNC_TX_CB, (FUNC_PTR)CAN_std_tx_callback);
+			can_async_enable(&CAN_0);
+			can_async_write(&CAN_0, &msg);
+		  }
+#else
 	while (1) {
 		scanf("%c", (char *)&key);
 
@@ -236,4 +264,5 @@ int main(void)
 			break;
 		}
 	}
+#endif
 }

@@ -78,4 +78,22 @@ void system_init(void)
 
 	TARGET_IO_init();
 	CAN_0_init();
+
+///////////////////
+
+// GPIO on PC18 ... from START "Led Flasher"
+
+	gpio_set_pin_level(LED0,
+	                   // <y> Initial level
+	                   // <id> pad_initial_level
+	                   // <false"> Low
+	                   // <true"> High
+	                   true);
+
+	// Set pin direction to output
+	gpio_set_pin_direction(LED0, GPIO_DIRECTION_OUT);
+
+	gpio_set_pin_function(LED0, GPIO_PIN_FUNCTION_OFF);
+
+////////////////////
 }
