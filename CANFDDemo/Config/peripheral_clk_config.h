@@ -9,7 +9,7 @@
  * \brief CPU's Clock frequency
  */
 #ifndef CONF_CPU_FREQUENCY
-#define CONF_CPU_FREQUENCY 119998464
+#define CONF_CPU_FREQUENCY 120000000
 #endif
 
 // <y> Core Clock Source
@@ -81,7 +81,7 @@
  * \brief SERCOM2's Core Clock frequency
  */
 #ifndef CONF_GCLK_SERCOM2_CORE_FREQUENCY
-#define CONF_GCLK_SERCOM2_CORE_FREQUENCY 119998464
+#define CONF_GCLK_SERCOM2_CORE_FREQUENCY 120000000
 #endif
 
 /**
@@ -129,7 +129,7 @@
  * \brief CAN1's Clock frequency
  */
 #ifndef CONF_GCLK_CAN1_FREQUENCY
-#define CONF_GCLK_CAN1_FREQUENCY 39999488
+#define CONF_GCLK_CAN1_FREQUENCY 40000000
 #endif
 
 // <<< end of configuration section >>>
