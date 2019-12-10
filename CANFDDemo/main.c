@@ -34,6 +34,73 @@
 #include <atmel_start.h>
 #include <hal_gpio.h> /// LED0
 
+
+static void CAN_0_std_tx( void );
+
+
+//-----------------------------------------------------------------------------
+// Timer examples:
+//  mcu-starter-projects\same54\main.c
+//-----------------------------------------------------------------------------
+#define PERIOD_FAST    100
+#define PERIOD_SLOW    500
+
+#define F_CPU  120000000
+
+#define                     USE_TIMER            1
+
+//HAL_GPIO_PIN(LED,      C, 18)
+//HAL_GPIO_PIN(BUTTON,   B, 31)
+//HAL_GPIO_PIN(UART_TX,  B, 25)
+//HAL_GPIO_PIN(UART_RX,  B, 24)
+
+//-----------------------------------------------------------------------------
+static void timer_set_period(uint16_t i)
+{
+	TC0->COUNT16.CC[0].reg = (F_CPU / 1000ul / 1024) * i;
+	TC0->COUNT16.COUNT.reg = 0;
+}
+
+//-----------------------------------------------------------------------------
+void TC0_Handler( void ) // void irq_handler_tc0(void)
+{
+	if (TC0->COUNT16.INTFLAG.reg & TC_INTFLAG_MC(1))
+	{
+		gpio_toggle_pin_level(LED0); // HAL_GPIO_LED_toggle();
+		TC0->COUNT16.INTFLAG.reg = TC_INTFLAG_MC(1);
+
+        CAN_0_std_tx( );
+	}
+}
+
+//-----------------------------------------------------------------------------
+static void timer_init(void)
+{
+	MCLK->APBAMASK.reg |= MCLK_APBAMASK_TC0;
+
+	GCLK->PCHCTRL[TC0_GCLK_ID].reg = GCLK_PCHCTRL_GEN(0) | GCLK_PCHCTRL_CHEN;
+	while (0 == (GCLK->PCHCTRL[TC0_GCLK_ID].reg & GCLK_PCHCTRL_CHEN));
+
+	TC0->COUNT16.CTRLA.reg = TC_CTRLA_MODE_COUNT16 | TC_CTRLA_PRESCALER_DIV1024 |
+	TC_CTRLA_PRESCSYNC_RESYNC;
+
+	TC0->COUNT16.WAVE.reg = TC_WAVE_WAVEGEN_MFRQ;
+
+	TC0->COUNT16.COUNT.reg = 0;
+
+	timer_set_period(PERIOD_SLOW);
+
+	TC0->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+
+	TC0->COUNT16.INTENSET.reg = TC_INTENSET_MC(1);
+
+	NVIC_EnableIRQ(TC0_IRQn);
+}
+
+//-----------------------------------------------------------------------------
+
+
+
 /**
  * \brief display configuration menu.
  */
@@ -90,6 +157,41 @@ static void CAN_0_rx_callback(struct can_async_descriptor *const descr)
 	return;
 }
 
+static void CAN_0_std_tx( void ){
+		static int ctr = 0xa5;
+			struct can_message msg;
+				uint8_t            data[8];
+				msg.data = data;
+		
+			msg.id   = 0x469;
+			msg.type = CAN_TYPE_DATA;
+//			msg.data = tx_message_2;
+			msg.len  = 8;
+			msg.fmt  = CAN_FMT_STDID;
+
+			msg.data[7] = ctr++; // tmp test
+
+			/* Disable the FDOE and BRSE from register configuration
+			 * and enable them again in callback  ^H^H^H^H^H^H^H^H^H^H^H^    no leave FD unconfigured */
+			hri_can_set_CCCR_INIT_bit(CAN_0.dev.hw);
+			while (hri_can_get_CCCR_INIT_bit(CAN_0.dev.hw) == 0)
+				;
+			hri_can_set_CCCR_CCE_bit(CAN_0.dev.hw);
+
+			hri_can_clear_CCCR_FDOE_bit(CAN_0.dev.hw);
+			hri_can_clear_CCCR_BRSE_bit(CAN_0.dev.hw);
+
+//			can_async_register_callback(&CAN_0, CAN_ASYNC_TX_CB, (FUNC_PTR)CAN_std_tx_callback);
+ // GN: use normal callback (use CAN STD only so no need re-enable FD/BR
+            can_async_register_callback(&CAN_0, CAN_ASYNC_TX_CB, (FUNC_PTR)CAN_0_tx_callback);
+
+			can_async_enable(&CAN_0);
+			can_async_write(&CAN_0, &msg);
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+
 int main(void)
 {
 	uint8_t key;
@@ -125,37 +227,29 @@ int main(void)
 	filter.mask = 0x07ff;
 #endif
 	can_async_set_filter(&CAN_0, 0, CAN_FMT_STDID, &filter);
-	
-	
+
+
+int fast = 1;
+#ifdef USE_TIMER 
+ timer_init();
+ timer_set_period(fast ? PERIOD_FAST : PERIOD_SLOW);
+ CAN_0_std_tx( ); // tmp test
+#endif
+
+//////////////////////////////////////////////////////////////////////////	
 #if 1
- int ctr = 0;		  
 		  while (true) {
+
+ #ifndef USE_TIMER
 			  delay_ms(500);
 			  gpio_toggle_pin_level(LED0);
 
-			msg.id   = 0x469;
-			msg.type = CAN_TYPE_DATA;
-			msg.data = tx_message_2;
-			msg.len  = 8;
-			msg.fmt  = CAN_FMT_STDID;
-msg.data[7] = ctr++;
-			/* Disable the FDOE and BRSE from register configuration
-			 * and enable them again in callback */
-			hri_can_set_CCCR_INIT_bit(CAN_0.dev.hw);
-			while (hri_can_get_CCCR_INIT_bit(CAN_0.dev.hw) == 0)
-				;
-			hri_can_set_CCCR_CCE_bit(CAN_0.dev.hw);
-
-			hri_can_clear_CCCR_FDOE_bit(CAN_0.dev.hw);
-			hri_can_clear_CCCR_BRSE_bit(CAN_0.dev.hw);
-
-//			can_async_register_callback(&CAN_0, CAN_ASYNC_TX_CB, (FUNC_PTR)CAN_std_tx_callback);
- // GN: use normal callback (use CAN STD only so no need re-enable FD/BR
-            can_async_register_callback(&CAN_0, CAN_ASYNC_TX_CB, (FUNC_PTR)CAN_0_tx_callback);
-
-			can_async_enable(&CAN_0);
-			can_async_write(&CAN_0, &msg);
+			  msg.data = tx_message_2;
+              CAN_0_std_tx( );
+ #endif
 		  }
+
+
 #else
 	while (1) {
 		scanf("%c", (char *)&key);
