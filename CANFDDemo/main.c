@@ -118,6 +118,15 @@ int main(void)
 		tx_message_2[k] = k;
 	}
 
+
+	can_async_register_callback(&CAN_0, CAN_ASYNC_RX_CB, (FUNC_PTR)CAN_0_rx_callback);
+#if 0 // optional filter+mask
+	filter.id   = 0x469;
+	filter.mask = 0x07ff;
+#endif
+	can_async_set_filter(&CAN_0, 0, CAN_FMT_STDID, &filter);
+	
+	
 #if 1
  int ctr = 0;		  
 		  while (true) {
@@ -140,7 +149,10 @@ msg.data[7] = ctr++;
 			hri_can_clear_CCCR_FDOE_bit(CAN_0.dev.hw);
 			hri_can_clear_CCCR_BRSE_bit(CAN_0.dev.hw);
 
-			can_async_register_callback(&CAN_0, CAN_ASYNC_TX_CB, (FUNC_PTR)CAN_std_tx_callback);
+//			can_async_register_callback(&CAN_0, CAN_ASYNC_TX_CB, (FUNC_PTR)CAN_std_tx_callback);
+ // GN: use normal callback (use CAN STD only so no need re-enable FD/BR
+            can_async_register_callback(&CAN_0, CAN_ASYNC_TX_CB, (FUNC_PTR)CAN_0_tx_callback);
+
 			can_async_enable(&CAN_0);
 			can_async_write(&CAN_0, &msg);
 		  }
