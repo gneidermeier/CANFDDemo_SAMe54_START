@@ -47,7 +47,7 @@ static void CAN_0_std_tx( void );
 
 #define F_CPU  120000000
 
-#define                     USE_TIMER            1
+//#define                     MCU_TIMER_EXAMPLE            1
 
 //HAL_GPIO_PIN(LED,      C, 18)
 //HAL_GPIO_PIN(BUTTON,   B, 31)
@@ -62,7 +62,7 @@ static void timer_set_period(uint16_t i)
 }
 
 //-----------------------------------------------------------------------------
-void TC0_Handler( void ) // void irq_handler_tc0(void)
+void __TC0_Handler( void ) // void irq_handler_tc0(void)
 {
 	if (TC0->COUNT16.INTFLAG.reg & TC_INTFLAG_MC(1))
 	{
@@ -74,7 +74,7 @@ void TC0_Handler( void ) // void irq_handler_tc0(void)
 }
 
 //-----------------------------------------------------------------------------
-static void timer_init(void)
+static void __timer_init(void)
 {
 	MCLK->APBAMASK.reg |= MCLK_APBAMASK_TC0;
 
@@ -99,6 +99,39 @@ static void timer_init(void)
 
 //-----------------------------------------------------------------------------
 
+//TIMER_0_example (copied from driver_example.c)
+
+static struct timer_task TIMER_0_task1, TIMER_0_task2;
+
+/**
+ * Example of using TIMER_0.
+ */
+static void TIMER_0_task1_cb(const struct timer_task *const timer_task)
+{
+//				  gpio_toggle_pin_level(LED0);
+    CAN_0_std_tx( ); 
+}
+
+static void TIMER_0_task2_cb(const struct timer_task *const timer_task)
+{
+					  gpio_toggle_pin_level(LED0);
+}
+
+void __TIMER_0_example(void)
+{
+	TIMER_0_task1.interval = 100;
+	TIMER_0_task1.cb       = TIMER_0_task1_cb;
+	TIMER_0_task1.mode     = TIMER_TASK_REPEAT;
+	TIMER_0_task2.interval = 200;
+	TIMER_0_task2.cb       = TIMER_0_task2_cb;
+	TIMER_0_task2.mode     = TIMER_TASK_REPEAT;
+
+	timer_add_task(&TIMER_0, &TIMER_0_task1);
+	timer_add_task(&TIMER_0, &TIMER_0_task2);
+	timer_start(&TIMER_0);
+}
+
+//-----------------------------------------------------------------------------
 
 
 /**
@@ -163,11 +196,11 @@ static void CAN_0_std_tx( void ){
 				uint8_t            data[8];
 				msg.data = data;
 		
-			msg.id   = 0x469;
+			msg.id   = 0xFECA;
 			msg.type = CAN_TYPE_DATA;
 //			msg.data = tx_message_2;
 			msg.len  = 8;
-			msg.fmt  = CAN_FMT_STDID;
+			msg.fmt  = CAN_FMT_EXTID;
 
 			msg.data[7] = ctr++; // tmp test
 
@@ -226,21 +259,25 @@ int main(void)
 	filter.id   = 0x469;
 	filter.mask = 0x07ff;
 #endif
-	can_async_set_filter(&CAN_0, 0, CAN_FMT_STDID, &filter);
+	can_async_set_filter(&CAN_0, 0, CAN_FMT_EXTID, &filter);
 
 
 int fast = 1;
-#ifdef USE_TIMER 
- timer_init();
+#ifdef MCU_TIMER_EXAMPLE 
+ __timer_init();
  timer_set_period(fast ? PERIOD_FAST : PERIOD_SLOW);
- CAN_0_std_tx( ); // tmp test
 #endif
+
+
+__TIMER_0_example();
+
+
 
 //////////////////////////////////////////////////////////////////////////	
 #if 1
 		  while (true) {
 
- #ifndef USE_TIMER
+ #if 0 // #ifndef MCU_TIMER_EXAMPLE
 			  delay_ms(500);
 			  gpio_toggle_pin_level(LED0);
 

@@ -11,6 +11,7 @@
 #include <utils.h>
 #include <hal_init.h>
 
+struct timer_descriptor     TIMER_0;
 struct can_async_descriptor CAN_0;
 
 struct usart_sync_descriptor TARGET_IO;
@@ -36,6 +37,19 @@ void TARGET_IO_init(void)
 	TARGET_IO_CLOCK_init();
 	usart_sync_init(&TARGET_IO, SERCOM2, (void *)NULL);
 	TARGET_IO_PORT_init();
+}
+
+/**
+ * \brief Timer initialization function
+ *
+ * Enables Timer peripheral, clocks and initializes Timer driver
+ */
+static void TIMER_0_init(void)
+{
+	hri_mclk_set_APBAMASK_TC0_bit(MCLK);
+	hri_gclk_write_PCHCTRL_reg(GCLK, TC0_GCLK_ID, CONF_GCLK_TC0_SRC | (1 << GCLK_PCHCTRL_CHEN_Pos));
+
+	timer_init(&TIMER_0, TC0, _tc_get_timer());
 }
 
 void CAN_0_PORT_init(void)
@@ -77,6 +91,8 @@ void system_init(void)
 	gpio_set_pin_function(CAN_STDBY, GPIO_PIN_FUNCTION_OFF);
 
 	TARGET_IO_init();
+
+	TIMER_0_init();
 	CAN_0_init();
 
 ///////////////////
