@@ -29,10 +29,12 @@ static struct timer_task TIMER_0_task1, TIMER_0_task2;
  */
 static void TIMER_0_task1_cb(const struct timer_task *const timer_task)
 {
+	gpio_toggle_pin_level(GPIO(GPIO_PORTC, 18));
 }
 
 static void TIMER_0_task2_cb(const struct timer_task *const timer_task)
 {
+	CAN_0_example();
 }
 
 void TIMER_0_example(void)
@@ -59,6 +61,9 @@ void CAN_0_rx_callback(struct can_async_descriptor *const descr)
 	uint8_t            data[64];
 	msg.data = data;
 	can_async_read(descr, &msg);
+	
+	printf("%04X: %02X %02X %02X %02X %02X %02X %02X %02X\r\n", 
+		msg.id, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
 	return;
 }
 
